@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Приглашение на свидание</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fff8f2;
+      --surface: #fff5ee;
+      --surface-strong: #ffe8e0;
+      --accent: #e75480;
+      --accent-soft: #f7c7d2;
+      --text: #3c2d2a;
+      --muted: #7a5b57;
+      --shadow: 0 20px 45px rgba(163, 104, 125, 0.18);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: linear-gradient(180deg, #fff9f5 0%, #fff1ee 100%);
+      color: var(--text);
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+    }
+    main {
+      width: min(100%, 1080px);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: 32px;
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+    }
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 2rem);
+      gap: 1.5rem;
+      padding: 2rem 1rem;
+      text-align: center;
+      position: relative;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(2.4rem, 6vw, 4.5rem);
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .button-grid {
+      display: grid;
+      gap: 1rem;
+      width: 100%;
+      max-width: 28rem;
+      grid-template-columns: 1fr 1fr;
+    }
+    .btn {
+      min-height: 88px;
+      border: none;
+      border-radius: 22px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      box-shadow: 0 12px 28px rgba(223, 145, 163, 0.22);
+      color: #fff;
+      touch-action: manipulation;
+    }
+    .btn:focus-visible {
+      outline: 4px solid rgba(231, 84, 128, 0.35);
+      outline-offset: 4px;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-yes {
+      background: linear-gradient(135deg, #ff7fa6 0%, #ff4f8c 100%);
+    }
+    .btn-no {
+      position: absolute;
+      background: #bcb3b3;
+      color: #fff;
+      font-size: 1.05rem;
+      min-width: 120px;
+      min-height: 64px;
+      border-radius: 999px;
+      transition: transform 0.35s ease, left 0.35s ease, top 0.35s ease;
+      z-index: 5;
+      box-shadow: 0 14px 32px rgba(107, 96, 119, 0.25);
+    }
+    .btn-no:hover { transform: scale(1.03); }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(18px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      height: 0;
+      overflow: hidden;
+    }
+    .visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+      height: auto;
+    }
+    .section-card {
+      display: grid;
+      gap: 1.25rem;
+      padding: 1.5rem;
+      background: var(--surface);
+      border-radius: 32px;
+      box-shadow: var(--shadow);
+    }
+    .section-card h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 4vw, 2.1rem);
+    }
+    .field-group {
+      display: grid;
+      gap: 0.85rem;
+    }
+    label {
+      font-weight: 700;
+      color: var(--text);
+    }
+    input[type="datetime-local"] {
+      width: 100%;
+      border-radius: 20px;
+      border: 1px solid #e8d1d8;
+      background: #fff;
+      color: var(--text);
+      padding: 1rem;
+      font-size: 1rem;
+      min-height: 52px;
+    }
+    .map-wrapper {
+      border-radius: 28px;
+      overflow: hidden;
+      min-height: 400px;
+      background: #e9d9de;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+    }
+    .small-note {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .manual-block {
+      border: 1px solid #edd7df;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 20px;
+    }
+    .manual-grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: 1fr 1fr;
+    }
+    .manual-grid input {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid #edd7df;
+      padding: 0.85rem 0.95rem;
+      font-size: 0.95rem;
+    }
+    .admin-panel {
+      display: grid;
+      gap: 1rem;
+    }
+    .record-card {
+      background: #fff;
+      border: 1px solid #f0d7df;
+      border-radius: 22px;
+      padding: 1rem;
+    }
+    .record-card p {
+      margin: 0.35rem 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+    .record-card strong {
+      color: var(--text);
+    }
+    .admin-note {
+      color: #6a4c4f;
+      background: #ffeff2;
+      padding: 1rem;
+      border-radius: 20px;
+      border: 1px solid #f4d8e0;
+    }
+    .status {
+      color: var(--text);
+      font-weight: 700;
+      margin-top: 0.25rem;
+    }
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    .ghost-btn {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--accent);
+      border: 1px solid rgba(231, 84, 128, 0.24);
+      min-height: 54px;
+      padding: 0 1.2rem;
+      border-radius: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    @media (max-width: 720px) {
+      body { padding: 0.5rem; }
+      .manual-grid { grid-template-columns: 1fr; }
+      .hero { min-height: calc(100vh - 1rem); padding: 1.5rem 1rem; }
+      .button-grid { grid-template-columns: 1fr; }
+      .btn-no { min-width: 100px; min-height: 60px; }
+      .map-wrapper { min-height: 300px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, .btn { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero card" id="heroSection">
+      <div>
+        <h1>Пойдёшь ли ты со мной на свидание?</h1>
+        <p>Нажми «Да», и мы вместе выберем дату, время и место.</p>
+      </div>
+      <div class="button-grid">
+        <button class="btn btn-yes" id="yesButton" type="button">
+          <span>❤️ Да</span>
+        </button>
+      </div>
+      <button class="btn btn-no" id="noButton" type="button" aria-label="Нет">Нет</button>
+    </section>
+
+    <section class="section-card hidden" id="step1Section" aria-hidden="true">
+      <div>
+        <h2>Шаг 1 — Выбери дату и время</h2>
+        <p class="small-note">Выбирай только будущее время, чтобы свидание точно состоялось.</p>
+      </div>
+      <div class="field-group">
+        <label for="dateTimeInput">Дата и время</label>
+        <input id="dateTimeInput" type="datetime-local" />
+      </div>
+      <div class="cta-row">
+        <button class="btn btn-yes" id="confirmDateButton" type="button">Подтвердить</button>
+        <span class="status" id="step1Status"></span>
+      </div>
+    </section>
+
+    <section class="section-card hidden" id="step2Section" aria-hidden="true">
+      <div>
+        <h2>Шаг 2 — Выбери место встречи</h2>
+        <p class="small-note">Нажми на карту, введи адрес или координаты.</p>
+      </div>
+      <div class="map-wrapper" id="mapWrapper">
+        <div id="map"></div>
+      </div>
+      <div class="manual-block">
+        <label for="manualAddress">Поиск адреса</label>
+        <input id="manualAddress" type="text" placeholder="Например: кафе у метро" style="width:100%; border-radius:16px; border:1px solid #edd7df; padding:0.85rem 0.95rem; margin:0.5rem 0;" />
+        <button class="ghost-btn" id="searchAddressBtn" type="button">Найти на карте</button>
+      </div>
+      <div class="manual-block">
+        <label for="manualLat">Координаты (широта / долгота)</label>
+        <div class="manual-grid">
+          <input id="manualLat" type="number" step="0.000001" placeholder="55.751244" />
+          <input id="manualLng" type="number" step="0.000001" placeholder="37.618423" />
+        </div>
+        <button class="ghost-btn" id="manualApplyButton" type="button" style="margin-top:0.5rem;">Применить координаты</button>
+      </div>
+      <div class="cta-row">
+        <button class="btn btn-yes" id="confirmLocationButton" type="button">Сохранить место</button>
+        <span class="status" id="step2Status"></span>
+      </div>
+    </section>
+
+    <section class="section-card hidden" id="finalSection" aria-hidden="true">
+      <div>
+        <h2>Ура! Ты согласилась!</h2>
+        <p class="small-note">Жду встречи ❤️</p>
+        <p class="small-note" id="finalDetails"></p>
+      </div>
+    </section>
+
+    <section class="section-card hidden admin-panel" id="adminSection" aria-hidden="true">
+      <div>
+        <h2>Админ: список заявок</h2>
+        <p class="admin-note">Только для тебя. Используй секретный ключ в URL, чтобы открыть эту страницу.</p>
+      </div>
+      <div id="adminRecords"></div>
+      <div class="cta-row">
+        <button class="ghost-btn" type="button" id="homeButton">Вернуться на главную</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Leaflet + плагины -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <script>
+    // ---------- ВСТАВЬТЕ ВАШИ ДАННЫЕ TELEGRAM ----------
+    const BOT_TOKEN = '8710199001:AAEFt4NjlKomlXcAINw80LThkOZSJUPfFuI';   // ваш токен уже здесь
+    const CHAT_ID = 'ВАШ_CHAT_ID';               // ← СЮДА ВСТАВЬТЕ ВАШ CHAT ID (число)
+    // ------------------------------------------------
+
+    // ---------- DOM-элементы ----------
+    const heroSection = document.getElementById('heroSection');
+    const step1Section = document.getElementById('step1Section');
+    const step2Section = document.getElementById('step2Section');
+    const finalSection = document.getElementById('finalSection');
+    const adminSection = document.getElementById('adminSection');
+    const adminRecords = document.getElementById('adminRecords');
+    const yesButton = document.getElementById('yesButton');
+    const noButton = document.getElementById('noButton');
+    const dateTimeInput = document.getElementById('dateTimeInput');
+    const confirmDateButton = document.getElementById('confirmDateButton');
+    const confirmLocationButton = document.getElementById('confirmLocationButton');
+    const step1Status = document.getElementById('step1Status');
+    const step2Status = document.getElementById('step2Status');
+    const homeButton = document.getElementById('homeButton');
+    const mapContainer = document.getElementById('map');
+    const manualAddress = document.getElementById('manualAddress');
+    const searchAddressBtn = document.getElementById('searchAddressBtn');
+    const manualLat = document.getElementById('manualLat');
+    const manualLng = document.getElementById('manualLng');
+    const manualApplyButton = document.getElementById('manualApplyButton');
+    const finalDetails = document.getElementById('finalDetails');
+
+    let currentAppointment = null;
+    let map, marker, geocoderControl;
+
+    // ---------- Вспомогательные функции ----------
+    function showSection(section) {
+      [heroSection, step1Section, step2Section, finalSection, adminSection].forEach(el => {
+        if (el === section) {
+          el.classList.remove('hidden');
+          el.classList.add('visible');
+          el.setAttribute('aria-hidden', 'false');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('visible');
+          el.setAttribute('aria-hidden', 'true');
+        }
+      });
+    }
+
+    function showStatus(element, message, isError = false) {
+      element.textContent = message;
+      element.style.color = isError ? '#b73b45' : 'var(--text)';
+    }
+
+    function setDateTimeMin() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 15);
+      const offset = now.getTimezoneOffset();
+      const localDate = new Date(now.getTime() - offset * 60000);
+      const local = localDate.toISOString().slice(0, 16);
+      dateTimeInput.min = local;
+      dateTimeInput.value = local;
+    }
+
+    function getRandomPositionForNoButton() {
+      const btn = noButton;
+      const rect = btn.getBoundingClientRect();
+      const margin = 16;
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
+      const left = Math.floor(Math.random() * Math.max(1, maxX - margin)) + margin;
+      const top = Math.floor(Math.random() * Math.max(1, maxY - margin)) + margin;
+      return { left, top };
+    }
+
+    function moveNoButton(event) {
+      event.preventDefault();
+      const { left, top } = getRandomPositionForNoButton();
+      noButton.style.left = `${left}px`;
+      noButton.style.top = `${top}px`;
+    }
+
+    // ---------- ОТПРАВКА В TELEGRAM ----------
+    async function sendToTelegram(record) {
+      const message = `
+🎉 Новая заявка на свидание!
+
+📅 Дата и время: ${record.dateTime}
+📍 Адрес: ${record.location.address || 'не указан'}
+🗺️ Координаты: ${record.location.lat ?? '-'}, ${record.location.lng ?? '-'}
+🆔 ID: ${record.id || 'без ID'}
+      `.trim();
+
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: message,
+            parse_mode: 'HTML'
+          })
+        });
+        const data = await response.json();
+        if (data.ok) {
+          return { success: true };
+        } else {
+          throw new Error(data.description || 'Telegram error');
+        }
+      } catch (error) {
+        console.error('Ошибка отправки в Telegram:', error);
+        return { success: false, error: error.message };
+      }
+    }
+
+    // ---------- Инициализация карты (Leaflet + OSM) ----------
+    function initMap() {
+      if (map) {
+        map.invalidateSize();
+        return;
+      }
+
+      const center = [55.751244, 37.618423];
+      map = L.map(mapContainer, {
+        center: center,
+        zoom: 14,
+        zoomControl: true,
+        fadeAnimation: true,
+        attributionControl: true,
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      marker = L.marker(center, { draggable: true, riseOnHover: true }).addTo(map);
+
+      map.on('click', async (e) => {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        const address = await reverseGeocode(lat, lng);
+        updateMarkerAndLocation(lat, lng, address);
+      });
+
+      marker.on('dragend', async () => {
+        const pos = marker.getLatLng();
+        const address = await reverseGeocode(pos.lat, pos.lng);
+        updateMarkerAndLocation(pos.lat, pos.lng, address);
+      });
+
+      geocoderControl = L.Control.geocoder({
+        defaultMarkGeocode: false,
+        placeholder: 'Поиск адреса...',
+        errorMessage: 'Ничего не найдено',
+      }).addTo(map);
+
+      geocoderControl.on('markgeocode', (e) => {
+        const center = e.geocode.center;
+        const address = e.geocode.name || 'Найденное место';
+        updateMarkerAndLocation(center.lat, center.lng, address);
+        map.panTo(center);
+      });
+
+      searchAddressBtn.addEventListener('click', async () => {
+        const query = manualAddress.value.trim();
+        if (!query) {
+          showStatus(step2Status, 'Введите адрес', true);
+          return;
+        }
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=jsonv2&limit=1&accept-language=ru`;
+        try {
+          const response = await fetch(url, { headers: { Referer: window.location.origin } });
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat);
+            const lng = parseFloat(data[0].lon);
+            const address = data[0].display_name || query;
+            updateMarkerAndLocation(lat, lng, address);
+            map.panTo([lat, lng]);
+          } else {
+            showStatus(step2Status, 'Адрес не найден', true);
+          }
+        } catch (error) {
+          showStatus(step2Status, 'Ошибка поиска', true);
+        }
+      });
+
+      manualApplyButton.addEventListener('click', () => {
+        const lat = parseFloat(manualLat.value);
+        const lng = parseFloat(manualLng.value);
+        if (isNaN(lat) || isNaN(lng)) {
+          showStatus(step2Status, 'Введите корректные координаты', true);
+          return;
+        }
+        const latlng = [lat, lng];
+        map.panTo(latlng);
+        marker.setLatLng(latlng);
+        reverseGeocode(lat, lng).then(address => {
+          updateMarkerAndLocation(lat, lng, address);
+        });
+      });
+
+      showStatus(step2Status, 'Выберите место на карте или введите адрес');
+      setTimeout(() => map.invalidateSize(), 300);
+    }
+
+    async function reverseGeocode(lat, lng) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=ru`;
+        const response = await fetch(url, { headers: { Referer: window.location.origin } });
+        const data = await response.json();
+        return data.display_name || 'Выбранное место';
+      } catch {
+        return 'Выбранное место';
+      }
+    }
+
+    function updateMarkerAndLocation(lat, lng, address) {
+      const pos = [lat, lng];
+      marker.setLatLng(pos);
+      map.panTo(pos);
+      currentAppointment.location = {
+        lat: Number(lat.toFixed(7)),
+        lng: Number(lng.toFixed(7)),
+        address: address || 'Выбранное место'
+      };
+      showStatus(step2Status, `📍 ${address}`);
+    }
+
+    // ---------- Основная логика ----------
+    yesButton.addEventListener('click', () => {
+      showSection(step1Section);
+      setDateTimeMin();
+      setTimeout(() => dateTimeInput.focus(), 300);
+    });
+
+    noButton.addEventListener('pointerenter', moveNoButton);
+    noButton.addEventListener('pointerdown', moveNoButton);
+    noButton.addEventListener('click', event => event.preventDefault());
+
+    confirmDateButton.addEventListener('click', async () => {
+      const dateTime = dateTimeInput.value;
+      if (!dateTime) {
+        showStatus(step1Status, 'Пожалуйста, выбери дату и время.', true);
+        return;
+      }
+      showStatus(step1Status, 'Дата подтверждена! Перехожу к выбору места.');
+      currentAppointment = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        dateTime: dateTime,
+        location: { lat: null, lng: null, address: '' }
+      };
+      showSection(step2Section);
+      setTimeout(() => initMap(), 200);
+    });
+
+    confirmLocationButton.addEventListener('click', async () => {
+      if (!currentAppointment || !currentAppointment.location || currentAppointment.location.lat === null) {
+        showStatus(step2Status, 'Сначала выберите точку на карте или введите координаты.', true);
+        return;
+      }
+      showStatus(step2Status, 'Отправка...');
+      try {
+        const result = await sendToTelegram(currentAppointment);
+        if (result.success) {
+          showStatus(step2Status, '✅ Выбор отправлен! Я получил(а) твой ответ ❤️');
+          finalDetails.textContent = `📅 ${currentAppointment.dateTime} | 📍 ${currentAppointment.location.address || 'место выбрано'}`;
+          showSection(finalSection);
+          startConfetti();
+        } else {
+          showStatus(step2Status, '❌ Не удалось отправить. Попробуй ещё раз или напиши мне в Telegram.', true);
+        }
+      } catch (error) {
+        console.error(error);
+        showStatus(step2Status, 'Ошибка отправки. Попробуй позже.', true);
+      }
+    });
+
+    function startConfetti() {
+      const duration = 3500;
+      const end = Date.now() + duration;
+      const colors = ['#ff5b8a', '#ffd2e5', '#ff8ad8', '#a65fc4'];
+      (function frame() {
+        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors });
+        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      })();
+    }
+
+    // ---------- Админка (локальное хранилище) ----------
+    function getStoredAppointments() {
+      try { return JSON.parse(localStorage.getItem('romantic-date-appointments') || '[]'); } catch { return []; }
+    }
+
+    function loadAdminRecords() {
+      adminRecords.innerHTML = '<p class="small-note">Загружаю записи...</p>';
+      try {
+        const records = getStoredAppointments();
+        if (!records.length) {
+          adminRecords.innerHTML = '<p class="small-note">Записей пока нет.</p>';
+          return;
+        }
+        adminRecords.innerHTML = '';
+        records.forEach(record => {
+          const loc = record.location || {};
+          const el = document.createElement('div');
+          el.className = 'record-card';
+          el.innerHTML = `
+            <p><strong>Дата/время:</strong> ${record.dateTime || 'не указано'}</p>
+            <p><strong>Адрес:</strong> ${loc.address || 'не выбрано'}</p>
+            <p><strong>Координаты:</strong> ${loc.lat ?? '-'}, ${loc.lng ?? '-'}</p>
+            <p><strong>ID:</strong> ${record.id}</p>
+            ${loc.lat != null && loc.lng != null ? `<p><a href="https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}" target="_blank" rel="noreferrer">Открыть в Google Maps</a></p>` : ''}
+          `;
+          adminRecords.appendChild(el);
+        });
+      } catch (e) {
+        adminRecords.innerHTML = `<p class="small-note">Ошибка загрузки: ${e.message}</p>`;
+      }
+    }
+
+    function handleAdminRoute() {
+      const url = new URL(window.location.href);
+      const key = url.searchParams.get('key');
+      if (key === 'мойсекретныйключ123') {
+        showSection(adminSection);
+        loadAdminRecords();
+      }
+    }
+
+    homeButton.addEventListener('click', () => {
+      window.location.href = window.location.pathname;
+    });
+
+    // ---------- Инициализация ----------
+    document.addEventListener('DOMContentLoaded', () => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('key') === 'kirascghima1234') {
+        handleAdminRoute();
+      } else {
+        showSection(heroSection);
+        const { left, top } = getRandomPositionForNoButton();
+        noButton.style.left = `${left}px`;
+        noButton.style.top = `${top}px`;
+      }
+    });
+  </script>
+</body>
+</html>
